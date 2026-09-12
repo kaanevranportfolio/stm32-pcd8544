@@ -31,12 +31,19 @@ int main(void)
 
 static void fill_checkerboard(void)
 {
-    pcd8544_send_cmd(0x80); /* column address 0 */
-    pcd8544_send_cmd(0x40); /* bank/row address 0 */
+    const int block = 8; /* 8x8 pixel squares, clearly visible to the eye */
 
-    for (int i = 0; i < (PCD8544_WIDTH * PCD8544_HEIGHT) / 8; i++)
+    for (int page = 0; page < PCD8544_HEIGHT / 8; page++)
     {
-        pcd8544_send_data((i % 2) ? 0xAA : 0x55);
+        pcd8544_send_cmd(0x80);        /* column address 0 */
+        pcd8544_send_cmd(0x40 | page); /* select this page/bank */
+
+        for (int col = 0; col < PCD8544_WIDTH; col++)
+        {
+            int block_x = col / block;
+            uint8_t byte = ((block_x + page) % 2) ? 0xFF : 0x00;
+            pcd8544_send_data(byte);
+        }
     }
 }
 
@@ -71,7 +78,8 @@ static void MX_SPI1_Init(void)
     hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
     hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
     hspi1.Init.NSS = SPI_NSS_SOFT;
-    hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
+    /* PCD8544 datasheet caps SCLK at 4MHz; APB2=72MHz so /32 = 2.25MHz. */
+    hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
     hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
     hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
     hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;

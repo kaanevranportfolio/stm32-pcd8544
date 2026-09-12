@@ -46,16 +46,15 @@ void pcd8544_init(SPI_HandleTypeDef *hspi)
 
     pcd8544_gpio_init();
 
-    /* PCD8544 reset pulse: active-low, minimum 100ns per datasheet. */
+    /* PCD8544 reset pulse: hold RST low for 100ms before releasing. */
     HAL_GPIO_WritePin(PCD8544_RST_PORT, PCD8544_RST_PIN, GPIO_PIN_RESET);
-    HAL_Delay(10);
+    HAL_Delay(100);
     HAL_GPIO_WritePin(PCD8544_RST_PORT, PCD8544_RST_PIN, GPIO_PIN_SET);
-    HAL_Delay(10);
 
     pcd8544_send_cmd(0x21); /* extended instruction set, PD=0, V=0, H=1 */
-    pcd8544_send_cmd(0xC0); /* set Vop (contrast) */
-    pcd8544_send_cmd(0x06); /* temperature coefficient 2 */
-    pcd8544_send_cmd(0x13); /* bias system, 1:48 */
+    pcd8544_send_cmd(0xB8); /* set Vop (contrast) */
+    pcd8544_send_cmd(0x04); /* temperature coefficient */
+    pcd8544_send_cmd(0x14); /* bias system, 1:48 */
     pcd8544_send_cmd(0x20); /* back to basic instruction set, H=0 */
     pcd8544_send_cmd(0x0C); /* normal display mode */
 }

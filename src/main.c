@@ -6,7 +6,13 @@ static SPI_HandleTypeDef hspi1;
 static void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
-static void fill_checkerboard(void);
+static void write_checkerboard_page(int page, uint8_t visible);
+static void animate_checkerboard(void);
+
+#define PCD8544_PAGES (PCD8544_HEIGHT / 8)
+#define CHECKER_BLOCK 8 /* 8x8 pixel squares, clearly visible to the eye */
+#define STEP_DELAY_MS 200
+#define HOLD_DELAY_MS 400
 
 void SysTick_Handler(void)
 {
@@ -22,28 +28,53 @@ int main(void)
     MX_SPI1_Init();
 
     pcd8544_init(&hspi1);
-    fill_checkerboard();
+    animate_checkerboard();
 
     while (1)
     {
     }
 }
 
-static void fill_checkerboard(void)
+/* Writes one page (8-pixel-tall row) as checkerboard squares, or blank. */
+static void write_checkerboard_page(int page, uint8_t visible)
 {
-    const int block = 8; /* 8x8 pixel squares, clearly visible to the eye */
+    pcd8544_send_cmd(0x80);        /* column address 0 */
+    pcd8544_send_cmd(0x40 | page); /* select this page/bank */
 
-    for (int page = 0; page < PCD8544_HEIGHT / 8; page++)
+    for (int col = 0; col < PCD8544_WIDTH; col++)
     {
-        pcd8544_send_cmd(0x80);        /* column address 0 */
-        pcd8544_send_cmd(0x40 | page); /* select this page/bank */
-
-        for (int col = 0; col < PCD8544_WIDTH; col++)
+        int block_x = col / CHECKER_BLOCK;
+        uint8_t byte = 0x00;
+        if (visible)
         {
-            int block_x = col / block;
-            uint8_t byte = ((block_x + page) % 2) ? 0xFF : 0x00;
-            pcd8544_send_data(byte);
+            byte = ((block_x + page) % 2) ? 0xFF : 0x00;
         }
+        pcd8544_send_data(byte);
+    }
+}
+
+/*
+ * Reveals the checkerboard one page at a time from top to bottom, holds it,
+ * then erases it the same way (top to bottom), holds blank, and repeats
+ * forever.
+ */
+static void animate_checkerboard(void)
+{
+    while (1)
+    {
+        for (int page = 0; page < PCD8544_PAGES; page++)
+        {
+            write_checkerboard_page(page, 1);
+            HAL_Delay(STEP_DELAY_MS);
+        }
+        HAL_Delay(HOLD_DELAY_MS);
+
+        for (int page = 0; page < PCD8544_PAGES; page++)
+        {
+            write_checkerboard_page(page, 0);
+            HAL_Delay(STEP_DELAY_MS);
+        }
+        HAL_Delay(HOLD_DELAY_MS);
     }
 }
 
